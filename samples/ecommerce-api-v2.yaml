@@ -1,0 +1,1066 @@
+openapi: "3.0.3"
+info:
+  title: Sample E-Commerce API
+  description: REST API for an e-commerce platform - Version 2 with breaking and non-breaking changes.
+  version: "2.0.0"
+  contact:
+    name: API Team
+    email: support@example.com
+
+servers:
+  - url: https://api.example.com/v2
+    description: Production
+  - url: http://localhost:8080/v2
+    description: Local Development
+
+tags:
+  - name: Users
+    description: User registration and management
+  - name: Products
+    description: Product catalog operations
+  - name: Orders
+    description: Order lifecycle management
+  - name: Reviews
+    description: Product reviews and ratings
+  - name: Cart
+    description: Shopping cart operations
+  - name: Wishlist
+    description: User wishlists (NEW in v2)
+
+paths:
+  # ──────────────────── USERS ────────────────────
+  /users:
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request body
+        "409":
+          description: Email already exists
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      operationId: getUserById
+      summary: Get user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique user identifier (CHANGED from int64 to UUID in v2)
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update user profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+    # NOTE: DELETE /users/{userId} has been REMOVED in v2
+
+  # ──────────────────── PRODUCTS ────────────────────
+  /products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List products with filtering
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [price_asc, price_desc, name_asc, newest]
+        - name: inStock
+          in: query
+          schema:
+            type: boolean
+          description: NEW in v2 - Filter to only in-stock items
+      responses:
+        "200":
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Add a new product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+  /products/{productId}:
+    get:
+      tags: [Products]
+      operationId: getProductById
+      summary: Get product details
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found
+
+    put:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update product details
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+    delete:
+      tags: [Products]
+      operationId: deleteProduct
+      summary: Remove a product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Product deleted
+
+  /products/{productId}/reviews:
+    get:
+      tags: [Reviews]
+      operationId: getProductReviews
+      summary: Get reviews for a product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: minRating
+          in: query
+          schema:
+            type: integer
+          description: NEW in v2 - Filter by minimum rating
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+
+    post:
+      tags: [Reviews]
+      operationId: createReview
+      summary: Submit a product review
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+      responses:
+        "201":
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  # ──────────────────── ORDERS ────────────────────
+  /orders:
+    get:
+      tags: [Orders]
+      operationId: listOrders
+      summary: List orders for the authenticated user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED, REFUNDED]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+
+    post:
+      tags: [Orders]
+      operationId: createOrder
+      summary: Place a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /orders/{orderId}:
+    get:
+      tags: [Orders]
+      operationId: getOrderById
+      summary: Get order details
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /orders/{orderId}/cancel:
+    post:
+      tags: [Orders]
+      operationId: cancelOrder
+      summary: Cancel an existing order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelOrderRequest"
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  # NEW IN V2: Refund endpoint
+  /orders/{orderId}/refund:
+    post:
+      tags: [Orders]
+      operationId: refundOrder
+      summary: Request a refund for a delivered order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundRequest"
+      responses:
+        "200":
+          description: Refund initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundResponse"
+        "400":
+          description: Order not eligible for refund
+
+  # ──────────────────── CART (same as v1) ────────────────────
+  /cart:
+    get:
+      tags: [Cart]
+      operationId: getCart
+      summary: Get current user's shopping cart
+      responses:
+        "200":
+          description: Cart contents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+    delete:
+      tags: [Cart]
+      operationId: clearCart
+      summary: Clear all items from cart
+      responses:
+        "204":
+          description: Cart cleared
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      operationId: addToCart
+      summary: Add an item to the cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddToCartRequest"
+      responses:
+        "200":
+          description: Item added to cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+  /cart/items/{itemId}:
+    put:
+      tags: [Cart]
+      operationId: updateCartItem
+      summary: Update item quantity in cart
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCartItemRequest"
+      responses:
+        "200":
+          description: Cart item updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+    delete:
+      tags: [Cart]
+      operationId: removeCartItem
+      summary: Remove an item from cart
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Item removed
+
+  # ──────────────────── WISHLIST (NEW in v2) ────────────────────
+  /wishlist:
+    get:
+      tags: [Wishlist]
+      operationId: getWishlist
+      summary: Get user's wishlist
+      responses:
+        "200":
+          description: Wishlist items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wishlist"
+
+  /wishlist/items:
+    post:
+      tags: [Wishlist]
+      operationId: addToWishlist
+      summary: Add a product to the wishlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddToWishlistRequest"
+      responses:
+        "200":
+          description: Item added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wishlist"
+
+  /wishlist/items/{productId}:
+    delete:
+      tags: [Wishlist]
+      operationId: removeFromWishlist
+      summary: Remove a product from the wishlist
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Item removed
+
+components:
+  schemas:
+    # ── User (CHANGED: id is now UUID, phone is now required, added avatarUrl) ──
+    User:
+      type: object
+      required: [id, email, firstName, lastName, phone, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user ID (CHANGED from int64 to UUID)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        email:
+          type: string
+          example: john@example.com
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        phone:
+          type: string
+          description: Phone number (NOW REQUIRED in v2)
+          example: "+1-555-0100"
+        avatarUrl:
+          type: string
+          description: Profile picture URL (NEW in v2)
+          example: "https://cdn.example.com/avatars/1001.jpg"
+        address:
+          $ref: "#/components/schemas/Address"
+        role:
+          type: string
+          enum: [CUSTOMER, ADMIN, SELLER]
+          example: CUSTOMER
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateUserRequest:
+      type: object
+      required: [email, password, firstName, lastName, phone]
+      properties:
+        email:
+          type: string
+          example: john@example.com
+        password:
+          type: string
+          format: password
+          example: SecureP@ss123
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        phone:
+          type: string
+          description: NOW REQUIRED in v2
+          example: "+1-555-0100"
+        address:
+          $ref: "#/components/schemas/Address"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+          description: NEW in v2
+        address:
+          $ref: "#/components/schemas/Address"
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          example: 123 Main St
+        city:
+          type: string
+          example: Springfield
+        state:
+          type: string
+          example: IL
+        zipCode:
+          type: string
+          example: "62701"
+        country:
+          type: string
+          example: US
+
+    # ── Product (CHANGED: removed compareAtPrice, added discount object) ──
+    Product:
+      type: object
+      required: [id, name, price, category, sku]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 5001
+        sku:
+          type: string
+          description: Stock keeping unit (NEW required field in v2)
+          example: "WBH-001-BLK"
+        name:
+          type: string
+          example: Wireless Bluetooth Headphones
+        description:
+          type: string
+        price:
+          type: number
+          format: double
+          example: 79.99
+        # NOTE: compareAtPrice REMOVED in v2, replaced by discount object
+        discount:
+          $ref: "#/components/schemas/Discount"
+        category:
+          type: string
+          example: Electronics
+        tags:
+          type: array
+          items:
+            type: string
+        imageUrls:
+          type: array
+          items:
+            type: string
+        stockQuantity:
+          type: integer
+          example: 150
+        averageRating:
+          type: number
+          format: float
+          example: 4.5
+        reviewCount:
+          type: integer
+          example: 89
+        seller:
+          $ref: "#/components/schemas/SellerInfo"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # NEW in v2
+    Discount:
+      type: object
+      properties:
+        percentage:
+          type: number
+          format: float
+          example: 38.5
+        originalPrice:
+          type: number
+          format: double
+          example: 129.99
+        validUntil:
+          type: string
+          format: date
+
+    CreateProductRequest:
+      type: object
+      required: [name, price, category, stockQuantity, sku]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        sku:
+          type: string
+          description: NEW required field in v2
+        price:
+          type: number
+          format: double
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        imageUrls:
+          type: array
+          items:
+            type: string
+        stockQuantity:
+          type: integer
+
+    ProductPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        currentPage:
+          type: integer
+        pageSize:
+          type: integer
+
+    SellerInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        rating:
+          type: number
+          format: float
+
+    # ── Review (CHANGED: rating type from integer to number) ──
+    Review:
+      type: object
+      required: [id, userId, rating, comment]
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        rating:
+          type: number
+          format: float
+          description: CHANGED from integer to float (now supports 4.5 etc.)
+          example: 4.5
+        comment:
+          type: string
+        helpful:
+          type: integer
+        verified:
+          type: boolean
+        images:
+          type: array
+          items:
+            type: string
+          description: NEW in v2 - Review photos
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateReviewRequest:
+      type: object
+      required: [rating, comment]
+      properties:
+        rating:
+          type: number
+          format: float
+          example: 4.5
+        comment:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+          description: NEW in v2
+
+    # ── Order (ADDED: estimatedDelivery, refund fields) ──
+    Order:
+      type: object
+      required: [id, userId, status, items, totalAmount]
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED, REFUNDED]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        totalAmount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: USD
+        trackingNumber:
+          type: string
+        estimatedDelivery:
+          type: string
+          format: date
+          description: NEW in v2
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      required: [productId, productName, quantity, unitPrice]
+      properties:
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+          format: double
+        subtotal:
+          type: number
+          format: double
+
+    CreateOrderRequest:
+      type: object
+      required: [items, shippingAddress]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemRequest"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        notes:
+          type: string
+        couponCode:
+          type: string
+          description: NEW in v2
+
+    OrderItemRequest:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+
+    CancelOrderRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    # NEW in v2
+    RefundRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          example: Product arrived damaged
+        itemIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Specific items to refund (empty = full refund)
+
+    # NEW in v2
+    RefundResponse:
+      type: object
+      properties:
+        refundId:
+          type: string
+          format: uuid
+        orderId:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        estimatedDate:
+          type: string
+          format: date
+
+    # ── Cart (unchanged from v1) ──
+    Cart:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        totalItems:
+          type: integer
+        totalPrice:
+          type: number
+          format: double
+        updatedAt:
+          type: string
+          format: date-time
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+          format: double
+        imageUrl:
+          type: string
+
+    AddToCartRequest:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+
+    # NEW in v2
+    Wishlist:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WishlistItem"
+        totalItems:
+          type: integer
+
+    # NEW in v2
+    WishlistItem:
+      type: object
+      properties:
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        price:
+          type: number
+          format: double
+        inStock:
+          type: boolean
+        addedAt:
+          type: string
+          format: date-time
+
+    # NEW in v2
+    AddToWishlistRequest:
+      type: object
+      required: [productId]
+      properties:
+        productId:
+          type: integer
+          format: int64
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string

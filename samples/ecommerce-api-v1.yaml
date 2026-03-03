@@ -1,0 +1,958 @@
+openapi: "3.0.3"
+info:
+  title: Sample E-Commerce API
+  description: REST API for an e-commerce platform managing users, products, orders, and reviews.
+  version: "1.0.0"
+  contact:
+    name: API Team
+    email: support@example.com
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local Development
+
+tags:
+  - name: Users
+    description: User registration and management
+  - name: Products
+    description: Product catalog operations
+  - name: Orders
+    description: Order lifecycle management
+  - name: Reviews
+    description: Product reviews and ratings
+  - name: Cart
+    description: Shopping cart operations
+
+paths:
+  # ──────────────────── USERS ────────────────────
+  /users:
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      operationId: getUserById
+      summary: Get user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Unique user identifier
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update user profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+
+    delete:
+      tags: [Users]
+      operationId: deleteUser
+      summary: Delete a user account
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: User deleted
+        "404":
+          description: User not found
+
+  # ──────────────────── PRODUCTS ────────────────────
+  /products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List products with filtering
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+            format: double
+          description: Minimum price filter
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+            format: double
+          description: Maximum price filter
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Page number (zero-indexed)
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Page size
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [price_asc, price_desc, name_asc, newest]
+          description: Sort order
+      responses:
+        "200":
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Add a new product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Validation error
+
+  /products/{productId}:
+    get:
+      tags: [Products]
+      operationId: getProductById
+      summary: Get product details
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found
+
+    put:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update product details
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+    delete:
+      tags: [Products]
+      operationId: deleteProduct
+      summary: Remove a product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Product deleted
+
+  /products/{productId}/reviews:
+    get:
+      tags: [Reviews]
+      operationId: getProductReviews
+      summary: Get reviews for a product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+
+    post:
+      tags: [Reviews]
+      operationId: createReview
+      summary: Submit a product review
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+      responses:
+        "201":
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "400":
+          description: Invalid review data
+
+  # ──────────────────── ORDERS ────────────────────
+  /orders:
+    get:
+      tags: [Orders]
+      operationId: listOrders
+      summary: List orders for the authenticated user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
+          description: Filter by order status
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+
+    post:
+      tags: [Orders]
+      operationId: createOrder
+      summary: Place a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid order (empty cart, out of stock, etc.)
+
+  /orders/{orderId}:
+    get:
+      tags: [Orders]
+      operationId: getOrderById
+      summary: Get order details
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Order not found
+
+  /orders/{orderId}/cancel:
+    post:
+      tags: [Orders]
+      operationId: cancelOrder
+      summary: Cancel an existing order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelOrderRequest"
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Order cannot be cancelled (already shipped)
+        "404":
+          description: Order not found
+
+  # ──────────────────── CART ────────────────────
+  /cart:
+    get:
+      tags: [Cart]
+      operationId: getCart
+      summary: Get current user's shopping cart
+      responses:
+        "200":
+          description: Cart contents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+    delete:
+      tags: [Cart]
+      operationId: clearCart
+      summary: Clear all items from cart
+      responses:
+        "204":
+          description: Cart cleared
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      operationId: addToCart
+      summary: Add an item to the cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddToCartRequest"
+      responses:
+        "200":
+          description: Item added to cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "400":
+          description: Invalid product or quantity
+
+  /cart/items/{itemId}:
+    put:
+      tags: [Cart]
+      operationId: updateCartItem
+      summary: Update item quantity in cart
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCartItemRequest"
+      responses:
+        "200":
+          description: Cart item updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+    delete:
+      tags: [Cart]
+      operationId: removeCartItem
+      summary: Remove an item from cart
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Item removed
+
+# ════════════════════════════════════════════════════════
+# SCHEMAS
+# ════════════════════════════════════════════════════════
+components:
+  schemas:
+    # ── User Schemas ──
+    User:
+      type: object
+      required: [id, email, firstName, lastName, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique user ID
+          example: 1001
+        email:
+          type: string
+          description: User email address
+          example: john@example.com
+        firstName:
+          type: string
+          description: First name
+          example: John
+        lastName:
+          type: string
+          description: Last name
+          example: Doe
+        phone:
+          type: string
+          description: Phone number
+          example: "+1-555-0100"
+        address:
+          $ref: "#/components/schemas/Address"
+        role:
+          type: string
+          enum: [CUSTOMER, ADMIN, SELLER]
+          description: User role
+          example: CUSTOMER
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+
+    CreateUserRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email:
+          type: string
+          example: john@example.com
+        password:
+          type: string
+          format: password
+          example: SecureP@ss123
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        phone:
+          type: string
+          example: "+1-555-0100"
+        address:
+          $ref: "#/components/schemas/Address"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        address:
+          $ref: "#/components/schemas/Address"
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          example: 123 Main St
+        city:
+          type: string
+          example: Springfield
+        state:
+          type: string
+          example: IL
+        zipCode:
+          type: string
+          example: "62701"
+        country:
+          type: string
+          example: US
+
+    # ── Product Schemas ──
+    Product:
+      type: object
+      required: [id, name, price, category]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 5001
+        name:
+          type: string
+          description: Product name
+          example: Wireless Bluetooth Headphones
+        description:
+          type: string
+          example: Premium noise-cancelling headphones with 30hr battery life
+        price:
+          type: number
+          format: double
+          description: Price in USD
+          example: 79.99
+        compareAtPrice:
+          type: number
+          format: double
+          description: Original price before discount
+          example: 129.99
+        category:
+          type: string
+          example: Electronics
+        tags:
+          type: array
+          items:
+            type: string
+          example: [wireless, bluetooth, audio]
+        imageUrls:
+          type: array
+          items:
+            type: string
+          description: Product image URLs
+        stockQuantity:
+          type: integer
+          description: Available stock count
+          example: 150
+        averageRating:
+          type: number
+          format: float
+          description: Average review rating (1-5)
+          example: 4.5
+        reviewCount:
+          type: integer
+          example: 89
+        seller:
+          $ref: "#/components/schemas/SellerInfo"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateProductRequest:
+      type: object
+      required: [name, price, category, stockQuantity]
+      properties:
+        name:
+          type: string
+          example: Wireless Bluetooth Headphones
+        description:
+          type: string
+        price:
+          type: number
+          format: double
+          example: 79.99
+        compareAtPrice:
+          type: number
+          format: double
+        category:
+          type: string
+          example: Electronics
+        tags:
+          type: array
+          items:
+            type: string
+        imageUrls:
+          type: array
+          items:
+            type: string
+        stockQuantity:
+          type: integer
+          example: 150
+
+    ProductPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        totalElements:
+          type: integer
+          format: int64
+          example: 250
+        totalPages:
+          type: integer
+          example: 13
+        currentPage:
+          type: integer
+          example: 0
+        pageSize:
+          type: integer
+          example: 20
+
+    SellerInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          example: TechStore Official
+        rating:
+          type: number
+          format: float
+          example: 4.8
+
+    # ── Review Schemas ──
+    Review:
+      type: object
+      required: [id, userId, rating, comment]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 9001
+        userId:
+          type: integer
+          format: int64
+          example: 1001
+        userName:
+          type: string
+          example: John D.
+        rating:
+          type: integer
+          description: Rating from 1 to 5
+          example: 4
+        comment:
+          type: string
+          example: Great headphones, comfortable fit and excellent sound quality!
+        helpful:
+          type: integer
+          description: Number of users who found this helpful
+          example: 12
+        verified:
+          type: boolean
+          description: Whether the reviewer purchased the product
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateReviewRequest:
+      type: object
+      required: [rating, comment]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 4
+        comment:
+          type: string
+          example: Great product!
+
+    # ── Order Schemas ──
+    Order:
+      type: object
+      required: [id, userId, status, items, totalAmount]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 7001
+        userId:
+          type: integer
+          format: int64
+          example: 1001
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
+          example: CONFIRMED
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        totalAmount:
+          type: number
+          format: double
+          example: 159.98
+        currency:
+          type: string
+          example: USD
+        trackingNumber:
+          type: string
+          description: Shipping tracking number
+          example: "1Z999AA10123456784"
+        notes:
+          type: string
+          description: Customer notes
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      required: [productId, productName, quantity, unitPrice]
+      properties:
+        productId:
+          type: integer
+          format: int64
+          example: 5001
+        productName:
+          type: string
+          example: Wireless Bluetooth Headphones
+        quantity:
+          type: integer
+          example: 2
+        unitPrice:
+          type: number
+          format: double
+          example: 79.99
+        subtotal:
+          type: number
+          format: double
+          example: 159.98
+
+    CreateOrderRequest:
+      type: object
+      required: [items, shippingAddress]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemRequest"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        notes:
+          type: string
+
+    OrderItemRequest:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+          format: int64
+          example: 5001
+        quantity:
+          type: integer
+          example: 2
+
+    CancelOrderRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          example: Changed my mind
+
+    # ── Cart Schemas ──
+    Cart:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        totalItems:
+          type: integer
+          example: 3
+        totalPrice:
+          type: number
+          format: double
+          example: 239.97
+        updatedAt:
+          type: string
+          format: date-time
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+          example: Wireless Bluetooth Headphones
+        quantity:
+          type: integer
+          example: 1
+        unitPrice:
+          type: number
+          format: double
+          example: 79.99
+        imageUrl:
+          type: string
+
+    AddToCartRequest:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+          format: int64
+          example: 5001
+        quantity:
+          type: integer
+          example: 1
+
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          example: 3
+
+    # ── Common ──
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Email is already registered
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          example: /v1/users
